@@ -93,8 +93,10 @@ def combine_close_prices():
                 try:
                     df = pd.read_csv(filepath, index_col=0, parse_dates=True)
                     if 'Close' in df.columns:
-                        # 將收盤價欄位重新命名為中文名稱
-                        combined_df[stock_map[base_code]] = df['Close']
+                        # 確保 'Close' 欄位是數值型態，無法轉換的會變成 NaN
+                        close_prices = pd.to_numeric(df['Close'], errors='coerce')
+                        # 將處理過的收盤價加入 combined_df
+                        combined_df[stock_map[base_code]] = close_prices
                     else:
                         print(f"檔案 {filename} 中找不到 'Close' 欄位。")
                 except Exception as e:
@@ -113,18 +115,18 @@ def combine_close_prices():
     # 按照日期排序，確保資料是時間序列
     combined_df.sort_index(inplace=True)
 
-    print("\n合併後的收盤價數據：")
-    print(combined_df.head())
-    print("...")
-    print(combined_df.tail())
-
     return combined_df
 
     
 #起始點一定寫在main
 def main():
     download_data()
-    df = combine_close_prices()
+    combined_df = combine_close_prices()
+    if not combined_df.empty:
+        print("\n合併後的收盤價數據：")
+        print(combined_df.head())
+        print("...")
+        print(combined_df.tail())
 
 #兩個開頭底線是內建的
 if __name__ == '__main__':
