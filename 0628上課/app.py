@@ -1,5 +1,6 @@
 import streamlit as st
 import yf_stock  # 匯入我們的主程式
+import pandas as pd
 
 # --- Streamlit 頁面設定 ---
 st.set_page_config(page_title="台股儀表板", layout="wide")
@@ -37,6 +38,7 @@ with col1:
     # 載入資料
     combined_df = load_data()
 
+    # --- UI elements are only shown if data is available ---
     if not combined_df.empty:
         # 多選框：讓使用者選擇要顯示的股票
         st.header("圖表選項")
@@ -46,19 +48,55 @@ with col1:
             options=all_stocks,
             default=all_stocks  # 預設全選
         )
+
+        # 日期範圍選擇器
+        st.header("日期範圍")
+        min_date = combined_df.index.min()
+        max_date = combined_df.index.max()
+
+        start_date = st.date_input(
+            "開始日期",
+            value=min_date,
+            min_value=min_date,
+            max_value=max_date
+        )
+        end_date = st.date_input(
+            "結束日期",
+            value=max_date,
+            min_value=start_date,
+            max_value=max_date
+        )
+
+        if start_date > end_date:
+            st.error("錯誤：開始日期不能晚於結束日期。")
+            st.stop()
+
     else:
         st.warning("找不到任何資料，請先點擊按鈕下載。")
+        # Set placeholders so the rest of the code doesn't break
         selected_stocks = []
+        start_date, end_date = None, None
 
 with col2:
     st.header("資料預覽與圖表")
-    if not combined_df.empty and selected_stocks:
+    # Check if we have everything needed to display
+    if not combined_df.empty and selected_stocks and start_date:
+        # Filter data based on user selections
+        mask = (combined_df.index >= pd.to_datetime(start_date)) & (combined_df.index <= pd.to_datetime(end_date))
+        filtered_df = combined_df.loc[mask]
+        
+        display_df = filtered_df[selected_stocks]
+
         # 顯示資料表格，並將數字格式化到小數點後兩位
-        st.subheader("合併收盤價資料")
-        st.dataframe(combined_df[selected_stocks].style.format("{:.2f}"))
+        st.subheader(f"收盤價資料 ({start_date.strftime('%Y-%m-%d')} 至 {end_date.strftime('%Y-%m-%d')})")
+        st.dataframe(display_df.style.format("{:.2f}"))
 
         # 繪製圖表，並設定固定高度
         st.subheader("股價走勢圖")
-        st.line_chart(combined_df[selected_stocks], height=400)
+        st.line_chart(display_df, height=400)
     else:
-        st.info("資料載入後，將在此處顯示預覽與圖表。")
+        # Provide context-aware messages
+        if combined_df.empty:
+            st.info("資料載入後，將在此處顯示預覽與圖表。")
+        elif not selected_stocks:
+            st.info("請在左側選擇至少一檔股票以顯示圖表。")

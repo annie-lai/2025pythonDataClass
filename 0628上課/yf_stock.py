@@ -112,6 +112,9 @@ def combine_close_prices():
     # .notna() 會篩選出所有轉換成功的行，也就是有效的日期
     combined_df = combined_df[pd.to_datetime(combined_df.index, errors='coerce').notna()]
 
+    # 將索引明確轉換為 DatetimeIndex，這是解決 TypeError 的關鍵
+    combined_df.index = pd.to_datetime(combined_df.index)
+
     # 按照日期排序，確保資料是時間序列
     combined_df.sort_index(inplace=True)
 
